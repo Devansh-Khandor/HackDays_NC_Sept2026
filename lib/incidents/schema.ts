@@ -82,18 +82,17 @@ export const draftSchema = z.object({
 });
 // GPS fixes coarser than this cannot tell buildings apart on campus.
 export const MAX_USABLE_ACCURACY_METERS = 150;
-export const hasPreciseCoordinates = (l: z.infer<typeof locationSchema>) =>
-  Boolean(
-    l.coordinates && l.coordinates.accuracy <= MAX_USABLE_ACCURACY_METERS,
-  );
+// Crews need the exact spot: a building or precise GPS, plus floor and room (or an outdoor landmark).
 export const hasLocation = (l: z.infer<typeof locationSchema>) =>
-  l.building.trim().length >= 3 ||
-  l.locationDescription.trim().length >= 5 ||
-  hasPreciseCoordinates(l);
+  (l.building.trim().length >= 3 ||
+    (l.coordinates !== null &&
+      l.coordinates.accuracy <= MAX_USABLE_ACCURACY_METERS)) &&
+  l.floor.trim().length > 0 &&
+  l.room.trim().length > 0;
 export const submissionSchema = draftSchema
   .extend({ userApproved: z.literal(true), submissionKey: z.string().uuid() })
   .refine((d) => hasLocation(d.location), {
-    message: "Add a building or a usable campus location.",
+    message: "Add your location or building, plus the floor and room.",
     path: ["location"],
   });
 export const duplicateSchema = z.object({

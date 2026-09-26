@@ -58,12 +58,10 @@ export function LocationText({ location }: { location: Draft["location"] }) {
   return (
     <>
       {[
-        location.building,
+        location.building || (location.coordinates && "GPS location"),
         location.floor && `Floor ${location.floor}`,
         location.room && `Room ${location.room}`,
         location.locationDescription,
-        location.coordinates &&
-          `GPS ±${Math.round(location.coordinates.accuracy)} m`,
       ]
         .filter(Boolean)
         .join(" · ") || "Location needed"}

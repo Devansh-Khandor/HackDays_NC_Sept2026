@@ -53,9 +53,7 @@ export async function POST(request: Request) {
       analysis = {
         ...analysis,
         missingInformation: ["location"],
-        clarifyingQuestions: [
-          "Which building is this in, and what floor or room is it near?",
-        ],
+        clarifyingQuestions: ["Which building, floor, and room is this in?"],
       };
     if (mode === "demo" && hasLocation(location))
       analysis = {

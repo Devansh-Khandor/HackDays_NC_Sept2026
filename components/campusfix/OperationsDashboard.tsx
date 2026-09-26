@@ -310,7 +310,7 @@ export function OperationsDashboard() {
                     <span>
                       {i.location.building ||
                         i.location.locationDescription ||
-                        (i.location.coordinates && "Device location")}
+                        (i.location.coordinates && "GPS location")}
                     </span>
                     <small>
                       {[

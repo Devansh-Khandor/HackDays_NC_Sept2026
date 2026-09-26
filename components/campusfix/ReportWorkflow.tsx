@@ -15,7 +15,11 @@ import {
 } from "lucide-react";
 import { type Draft, type Incident, hasLocation } from "@/lib/incidents/schema";
 import { IncidentCapture } from "./IncidentCapture";
-import { LocationPicker } from "./LocationPicker";
+import {
+  CAMPUS_BUILDINGS_LIST,
+  CampusBuildingOptions,
+  LocationPicker,
+} from "./LocationPicker";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   ErrorMessage,
@@ -298,7 +302,7 @@ export function ReportWorkflow() {
                   <strong>Just a little more context</strong>
                   <p>
                     {draft.analysis.clarifyingQuestions.join(" ") ||
-                      "Which building is this in, and what floor or room is it near?"}
+                      "Which building, floor, and room is this in?"}
                   </p>
                 </div>
               </div>
@@ -397,6 +401,12 @@ export function ReportWorkflow() {
                         ? "Nearby landmark / location"
                         : field}
                       <input
+                        required={field === "floor" || field === "room"}
+                        list={
+                          field === "building"
+                            ? CAMPUS_BUILDINGS_LIST
+                            : undefined
+                        }
                         value={draft.location[field]}
                         onChange={(e) =>
                           setDraft({
@@ -411,14 +421,35 @@ export function ReportWorkflow() {
                       />
                     </label>
                   ))}
+                  <CampusBuildingOptions />
                   <LocationPicker
                     value={draft.location.coordinates}
-                    onChange={(coordinates) =>
+                    building={draft.location.building}
+                    onPick={(building) =>
+                      setDraft(
+                        (d) =>
+                          d && { ...d, location: { ...d.location, building } },
+                      )
+                    }
+                    onLocate={(coordinates, building) =>
                       setDraft(
                         (d) =>
                           d && {
                             ...d,
-                            location: { ...d.location, coordinates },
+                            location: {
+                              ...d.location,
+                              coordinates,
+                              building: building ?? d.location.building,
+                            },
+                          },
+                      )
+                    }
+                    onClear={() =>
+                      setDraft(
+                        (d) =>
+                          d && {
+                            ...d,
+                            location: { ...d.location, coordinates: null },
                           },
                       )
                     }

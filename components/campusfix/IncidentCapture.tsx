@@ -14,10 +14,18 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { scenarios } from "@/lib/demo/scenarios";
-import { emptyLocation, type Location } from "@/lib/incidents/schema";
+import {
+  emptyLocation,
+  hasLocation,
+  type Location,
+} from "@/lib/incidents/schema";
 import { ErrorMessage } from "./Shared";
 import { CameraCapture } from "./CameraCapture";
-import { LocationPicker } from "./LocationPicker";
+import {
+  CAMPUS_BUILDINGS_LIST,
+  CampusBuildingOptions,
+  LocationPicker,
+} from "./LocationPicker";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 // Phone cameras routinely exceed the upload limit; re-encode those as a smaller JPEG.
 async function shrinkImage(file: File, maxEdge = 2560): Promise<File> {
@@ -241,21 +249,32 @@ export function IncidentCapture({
           rows={2}
         />
       </label>
-      <LocationPicker
-        value={location.coordinates}
-        onChange={(coordinates) => setLocation((l) => ({ ...l, coordinates }))}
-      />
-      <details className="location-input">
-        <summary>
+      <div className="location-input">
+        <div className="location-heading">
           <MapPin size={17} />
-          Add building &amp; room <span>Optional for now</span>
-          <span className="plus">+</span>
-        </summary>
+          Where is it?{" "}
+          <span>Your location or building, plus floor and room</span>
+        </div>
+        <LocationPicker
+          value={location.coordinates}
+          building={location.building}
+          onPick={(building) => setLocation((l) => ({ ...l, building }))}
+          onLocate={(coordinates, building) =>
+            setLocation((l) => ({
+              ...l,
+              coordinates,
+              building: building ?? l.building,
+            }))
+          }
+          onClear={() => setLocation((l) => ({ ...l, coordinates: null }))}
+        />
         <div className="location-fields">
           {(["building", "floor", "room"] as const).map((k) => (
             <label className="field" key={k}>
               {k === "room" ? "Room / landmark" : k}
               <input
+                required={k !== "building"}
+                list={k === "building" ? CAMPUS_BUILDINGS_LIST : undefined}
                 value={location[k]}
                 onChange={(e) =>
                   setLocation({ ...location, [k]: e.target.value })
@@ -263,20 +282,23 @@ export function IncidentCapture({
                 maxLength={250}
                 placeholder={
                   k === "building"
-                    ? "e.g. Engineering Building II"
+                    ? "e.g. Koch Hall (Engineering Building II)"
                     : k === "floor"
-                      ? "e.g. 2"
-                      : "e.g. Near 2201"
+                      ? "e.g. 2 or Ground"
+                      : "e.g. 2201 or Main entrance"
                 }
               />
             </label>
           ))}
         </div>
-      </details>
+        <CampusBuildingOptions />
+      </div>
       <ErrorMessage message={error} />
       <button
         className="button primary wide"
-        disabled={!demo && !file && !description.trim()}
+        disabled={
+          !hasLocation(location) || (!demo && !file && !description.trim())
+        }
         onClick={submit}
       >
         <Sparkles size={19} />
