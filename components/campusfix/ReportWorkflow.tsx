@@ -41,7 +41,7 @@ async function request(url: string, body: unknown, method = "POST") {
     throw new Error(json.error || "Something went wrong. Please try again.");
   return json;
 }
-export function ReportWorkflow() {
+export function ReportWorkflow({isAdmin=false}:{isAdmin?:boolean}) {
   const [step, setStep] = useState<Step>("capture");
   const [demo, setDemo] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -157,14 +157,9 @@ export function ReportWorkflow() {
     setBusy(true);
     setError("");
     try {
-      let confirmationKey = localStorage.getItem("campusfix-confirmation-key");
-      if (!confirmationKey) {
-        confirmationKey = crypto.randomUUID();
-        localStorage.setItem("campusfix-confirmation-key", confirmationKey);
-      }
       const data = await request(
         `/api/incidents/${duplicate.incident.id}/confirm`,
-        { confirmationKey },
+        {},
       );
       setConfirmed(true);
       setIncident(data);
@@ -561,8 +556,8 @@ export function ReportWorkflow() {
               >
                 Report Another Issue
               </button>
-              <Link className="text-button dashboard-link" href="/admin">
-                View Operations Dashboard
+              <Link className="text-button dashboard-link" href={isAdmin?"/admin":"/my-reports"}>
+                {isAdmin?"View Operations Dashboard":"View My Reports"}
                 <ChevronRight size={15} />
               </Link>
               <div className="powered">

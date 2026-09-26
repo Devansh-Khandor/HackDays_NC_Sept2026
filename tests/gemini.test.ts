@@ -27,7 +27,7 @@ describe("Gemini structured multimodal boundary", () => {
       location: { ...emptyLocation, building: "Hunt Library" },
     });
     const call = generateContent.mock.calls[0][0];
-    expect(call.model).toBe("gemini-3.8-flash");
+    expect(call.model).toBe("gemini-3.5-flash-lite");
     expect(call.contents[0].parts[1].inlineData).toEqual({
       data: buffer.toString("base64"),
       mimeType: "image/png",

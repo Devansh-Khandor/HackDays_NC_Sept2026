@@ -1,6 +1,6 @@
 import "server-only";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
-import path from "node:path";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/server";
 import { randomUUID } from "node:crypto";
 import { AppError } from "./errors";
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -33,18 +33,24 @@ export async function validateImage(file: File) {
   };
 }
 export async function storeImage(buffer: Buffer, extension: string) {
-  const name = `${randomUUID()}.${extension}`;
-  const dir = path.join(process.cwd(), "data/uploads");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), buffer);
+  const user=await requireUser();
+  const db=await createSupabaseServerClient();
+  const name=`${randomUUID()}.${extension}`;
+  const objectPath=`${user.id}/${name}`;
+  const contentType=extension==='jpg'?'image/jpeg':extension==='png'?'image/png':'image/webp';
+  const {error}=await db.storage.from('incident-photos').upload(objectPath,buffer,{contentType,upsert:false});
+  if(error)throw new AppError('Your photo could not be saved. Please try again.',502);
+  const {error:recordError}=await db.from('incident_uploads').insert({filename:name,owner_id:user.id,object_path:objectPath});
+  if(recordError){await db.storage.from('incident-photos').remove([objectPath]);throw new AppError('Your photo could not be saved. Please try again.',502);}
   return `/api/uploads/${name}`;
 }
-export async function readImage(name: string) {
-  if (!/^[a-f0-9-]{36}\.(jpg|png|webp)$/.test(name))
-    throw new AppError("Image not found.", 404);
-  try {
-    return await readFile(path.join(process.cwd(), "data/uploads", name));
-  } catch {
-    throw new AppError("Image not found.", 404);
-  }
+export async function readImage(name:string){
+  await requireUser();
+  if(!/^[a-f0-9-]{36}\.(jpg|png|webp)$/.test(name))throw new AppError('Image not found.',404);
+  const db=await createSupabaseServerClient();
+  const {data:record,error}=await db.from('incident_uploads').select('object_path').eq('filename',name).maybeSingle();
+  if(error||!record)throw new AppError('Image not found.',404);
+  const {data,error:downloadError}=await db.storage.from('incident-photos').download(record.object_path);
+  if(downloadError||!data)throw new AppError('Image not found.',404);
+  return Buffer.from(await data.arrayBuffer());
 }

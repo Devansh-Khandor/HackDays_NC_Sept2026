@@ -4,7 +4,7 @@ import { apiError, readJson } from "@/lib/server/errors";
 export const dynamic = "force-dynamic";
 export async function GET() {
   try {
-    return Response.json(await getRepository().getIncidents());
+    return Response.json(await (await getRepository()).getIncidents());
   } catch (e) {
     return apiError(e);
   }

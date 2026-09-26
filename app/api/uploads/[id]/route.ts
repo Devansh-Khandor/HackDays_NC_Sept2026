@@ -16,7 +16,7 @@ export async function GET(
             ? "image/webp"
             : "image/jpeg",
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (e) {

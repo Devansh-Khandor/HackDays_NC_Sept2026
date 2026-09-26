@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ScanLine, ArrowUpRight } from "lucide-react";
-export function AppHeader() {
+export function AppHeader({ role }: { role: "admin" | "student" }) {
   const path = usePathname();
+  const router=useRouter();
   return (
     <header className="app-header">
       <Link href="/" className="brand">
@@ -21,12 +22,24 @@ export function AppHeader() {
         >
           Report an issue
         </Link>
-        <Link
-          className={path.startsWith("/admin") ? "active" : ""}
-          href="/admin"
+        <Link href="/my-reports">My reports</Link>
+        {role === "admin" && (
+          <Link
+            className={path.startsWith("/admin") ? "active" : ""}
+            href="/admin"
+          >
+            Operations <ArrowUpRight size={15} />
+          </Link>
+        )}
+        <button
+          className="text-button"
+          onClick={async () => {
+            const r = await fetch("/api/auth/logout", { method: "POST" });
+            if (r.ok) {router.replace("/login");router.refresh();}
+          }}
         >
-          Operations <ArrowUpRight size={15} />
-        </Link>
+          Sign out
+        </button>
       </nav>
       <span className="header-note">
         <span className="live-dot" />
