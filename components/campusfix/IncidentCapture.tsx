@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Camera,
   Upload,
@@ -14,8 +14,36 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { scenarios } from "@/lib/demo/scenarios";
-import { emptyLocation, type Location } from "@/lib/incidents/schema";
+import {
+  emptyLocation,
+  hasLocation,
+  type Location,
+} from "@/lib/incidents/schema";
 import { ErrorMessage } from "./Shared";
+import { CameraCapture } from "./CameraCapture";
+import {
+  CAMPUS_BUILDINGS_LIST,
+  CampusBuildingOptions,
+  LocationPicker,
+} from "./LocationPicker";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Phone cameras routinely exceed the upload limit; re-encode those as a smaller JPEG.
+async function shrinkImage(file: File, maxEdge = 2560): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((r) =>
+    canvas.toBlob(r, "image/jpeg", 0.85),
+  );
+  if (!blob) throw new Error("Could not process image");
+  return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", {
+    type: "image/jpeg",
+  });
+}
 export function IncidentCapture({
   demo,
   onDemoChange,
@@ -32,28 +60,51 @@ export function IncidentCapture({
   const [scenario, setScenario] = useState("fountain");
   const [error, setError] = useState("");
   const [drag, setDrag] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  function select(f?: File) {
+  const cameraInput = useRef<HTMLInputElement>(null);
+  async function select(f?: File) {
     if (!f) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
       setError("Please upload a JPG, PNG, or WebP image.");
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      setError("Please choose an image smaller than 5 MB.");
-      return;
+    if (f.size > MAX_IMAGE_BYTES) {
+      try {
+        f = await shrinkImage(f);
+      } catch {
+        f = undefined;
+      }
+      if (!f || f.size > MAX_IMAGE_BYTES) {
+        setError("Please choose an image smaller than 5 MB.");
+        return;
+      }
     }
     setError("");
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(URL.createObjectURL(f));
   }
+  function takePhoto() {
+    // Phones get the native camera app; desktops without one get a live webcam view.
+    const phone = window.matchMedia("(pointer: coarse)").matches;
+    if (!phone && window.isSecureContext && "mediaDevices" in navigator)
+      setCameraOpen(true);
+    else cameraInput.current?.click();
+  }
+  const cameraUnavailable = useCallback((message: string) => {
+    setCameraOpen(false);
+    setError(message);
+  }, []);
+  const closeCamera = useCallback(() => setCameraOpen(false), []);
   function submit() {
     const form = new FormData();
     form.set("mode", demo ? "demo" : "live");
     form.set("scenario", scenario);
     form.set("description", description);
-    for (const [key, value] of Object.entries(location)) form.set(key, value);
+    const { coordinates, ...place } = location;
+    for (const [key, value] of Object.entries(place)) form.set(key, value);
+    if (coordinates) form.set("coordinates", JSON.stringify(coordinates));
     if (file) form.set("image", file);
     onAnalyze(form);
   }
@@ -170,17 +221,19 @@ export function IncidentCapture({
                   <Upload size={15} />
                   Upload photo
                 </button>
-                <label className="small-button camera-button">
+                <button className="small-button" onClick={takePhoto}>
                   <Camera size={15} />
                   Take photo
-                  <input
-                    className="sr-only"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    onChange={(e) => select(e.target.files?.[0])}
-                  />
-                </label>
+                </button>
+                <input
+                  aria-label="Take issue photo"
+                  ref={cameraInput}
+                  className="sr-only"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  onChange={(e) => select(e.target.files?.[0])}
+                />
               </div>
             </>
           )}
@@ -196,17 +249,32 @@ export function IncidentCapture({
           rows={2}
         />
       </label>
-      <details className="location-input">
-        <summary>
+      <div className="location-input">
+        <div className="location-heading">
           <MapPin size={17} />
-          Add a location <span>Optional for now</span>
-          <span className="plus">+</span>
-        </summary>
+          Where is it?{" "}
+          <span>Your location or building, plus floor and room</span>
+        </div>
+        <LocationPicker
+          value={location.coordinates}
+          building={location.building}
+          onPick={(building) => setLocation((l) => ({ ...l, building }))}
+          onLocate={(coordinates, building) =>
+            setLocation((l) => ({
+              ...l,
+              coordinates,
+              building: building ?? l.building,
+            }))
+          }
+          onClear={() => setLocation((l) => ({ ...l, coordinates: null }))}
+        />
         <div className="location-fields">
           {(["building", "floor", "room"] as const).map((k) => (
             <label className="field" key={k}>
               {k === "room" ? "Room / landmark" : k}
               <input
+                required={k !== "building"}
+                list={k === "building" ? CAMPUS_BUILDINGS_LIST : undefined}
                 value={location[k]}
                 onChange={(e) =>
                   setLocation({ ...location, [k]: e.target.value })
@@ -214,20 +282,23 @@ export function IncidentCapture({
                 maxLength={250}
                 placeholder={
                   k === "building"
-                    ? "e.g. Engineering Building II"
+                    ? "e.g. Koch Hall (Engineering Building II)"
                     : k === "floor"
-                      ? "e.g. 2"
-                      : "e.g. Near 2201"
+                      ? "e.g. 2 or Ground"
+                      : "e.g. 2201 or Main entrance"
                 }
               />
             </label>
           ))}
         </div>
-      </details>
+        <CampusBuildingOptions />
+      </div>
       <ErrorMessage message={error} />
       <button
         className="button primary wide"
-        disabled={!demo && !file && !description.trim()}
+        disabled={
+          !hasLocation(location) || (!demo && !file && !description.trim())
+        }
         onClick={submit}
       >
         <Sparkles size={19} />
@@ -237,6 +308,16 @@ export function IncidentCapture({
       <p className="privacy-note">
         You review every detail before anything is submitted.
       </p>
+      {cameraOpen && (
+        <CameraCapture
+          onCapture={(f) => {
+            setCameraOpen(false);
+            select(f);
+          }}
+          onClose={closeCamera}
+          onUnavailable={cameraUnavailable}
+        />
+      )}
     </>
   );
 }

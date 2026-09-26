@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { type Draft, type Incident, hasLocation } from "@/lib/incidents/schema";
 import { IncidentCapture } from "./IncidentCapture";
+import {
+  CAMPUS_BUILDINGS_LIST,
+  CampusBuildingOptions,
+  LocationPicker,
+} from "./LocationPicker";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   ErrorMessage,
@@ -41,7 +46,7 @@ async function request(url: string, body: unknown, method = "POST") {
     throw new Error(json.error || "Something went wrong. Please try again.");
   return json;
 }
-export function ReportWorkflow() {
+export function ReportWorkflow({isAdmin=false}:{isAdmin?:boolean}) {
   const [step, setStep] = useState<Step>("capture");
   const [demo, setDemo] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -157,14 +162,9 @@ export function ReportWorkflow() {
     setBusy(true);
     setError("");
     try {
-      let confirmationKey = localStorage.getItem("campusfix-confirmation-key");
-      if (!confirmationKey) {
-        confirmationKey = crypto.randomUUID();
-        localStorage.setItem("campusfix-confirmation-key", confirmationKey);
-      }
       const data = await request(
         `/api/incidents/${duplicate.incident.id}/confirm`,
-        { confirmationKey },
+        {},
       );
       setConfirmed(true);
       setIncident(data);
@@ -297,7 +297,7 @@ export function ReportWorkflow() {
                   <strong>Just a little more context</strong>
                   <p>
                     {draft.analysis.clarifyingQuestions.join(" ") ||
-                      "Which building is this in, and what floor or room is it near?"}
+                      "Which building, floor, and room is this in?"}
                   </p>
                 </div>
               </div>
@@ -396,6 +396,12 @@ export function ReportWorkflow() {
                         ? "Nearby landmark / location"
                         : field}
                       <input
+                        required={field === "floor" || field === "room"}
+                        list={
+                          field === "building"
+                            ? CAMPUS_BUILDINGS_LIST
+                            : undefined
+                        }
                         value={draft.location[field]}
                         onChange={(e) =>
                           setDraft({
@@ -410,6 +416,39 @@ export function ReportWorkflow() {
                       />
                     </label>
                   ))}
+                  <CampusBuildingOptions />
+                  <LocationPicker
+                    value={draft.location.coordinates}
+                    building={draft.location.building}
+                    onPick={(building) =>
+                      setDraft(
+                        (d) =>
+                          d && { ...d, location: { ...d.location, building } },
+                      )
+                    }
+                    onLocate={(coordinates, building) =>
+                      setDraft(
+                        (d) =>
+                          d && {
+                            ...d,
+                            location: {
+                              ...d.location,
+                              coordinates,
+                              building: building ?? d.location.building,
+                            },
+                          },
+                      )
+                    }
+                    onClear={() =>
+                      setDraft(
+                        (d) =>
+                          d && {
+                            ...d,
+                            location: { ...d.location, coordinates: null },
+                          },
+                      )
+                    }
+                  />
                   <button
                     className="button primary"
                     disabled={
@@ -561,8 +600,8 @@ export function ReportWorkflow() {
               >
                 Report Another Issue
               </button>
-              <Link className="text-button dashboard-link" href="/admin">
-                View Operations Dashboard
+              <Link className="text-button dashboard-link" href={isAdmin?"/admin":"/my-reports"}>
+                {isAdmin?"View Operations Dashboard":"View My Reports"}
                 <ChevronRight size={15} />
               </Link>
               <div className="powered">

@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/server";
 import {
   clarifyInputSchema,
   clarifyIncident,
@@ -8,6 +9,7 @@ import { applySafetyRules } from "@/lib/safety/safetyRules";
 import { apiError, readJson } from "@/lib/server/errors";
 export async function POST(request: Request) {
   try {
+    await requireUser();
     const d = clarifyInputSchema.parse(await readJson(request));
     // Demo explicitly uses the entire answer as a location description, not simulated AI extraction.
     const result =

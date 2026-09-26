@@ -1,3 +1,4 @@
+import { requirePageUser } from "@/lib/auth/server";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -8,7 +9,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ReportWorkflow } from "@/components/campusfix/ReportWorkflow";
-export default function Home() {
+export default async function Home() {
+  const user = await requirePageUser(false);
   return (
     <main className="home">
       <section className="hero">
@@ -32,8 +34,13 @@ export default function Home() {
               Report an Issue
               <ArrowDown size={17} />
             </a>
-            <Link href="/admin" className="hero-secondary">
-              View Operations Dashboard
+            <Link
+              href={user.role === "admin" ? "/admin" : "/my-reports"}
+              className="hero-secondary"
+            >
+              {user.role === "admin"
+                ? "View Operations Dashboard"
+                : "View My Reports"}
               <ArrowUpRight size={17} />
             </Link>
           </div>
@@ -87,7 +94,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <ReportWorkflow />
+      <ReportWorkflow isAdmin={user.role === "admin"} />
       <section className="bottom-note">
         <Shield />
         <div>

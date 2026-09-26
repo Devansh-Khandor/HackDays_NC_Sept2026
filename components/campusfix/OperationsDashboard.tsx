@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { statuses, type Incident, type Status } from "@/lib/incidents/schema";
+import { mapUrl } from "@/lib/incidents/geo";
 import {
   ErrorMessage,
   ReportContent,
@@ -155,7 +156,7 @@ export function OperationsDashboard() {
         <div>
           <div className="dashboard-eyebrow">
             <span className="eyebrow">Campus operations</span>
-            <span className="demo-admin">Demo Admin</span>
+            <span className="demo-admin">Administrator</span>
           </div>
           <h1>
             CampusFix Command Center<span>.</span>
@@ -307,7 +308,9 @@ export function OperationsDashboard() {
                   </td>
                   <td>
                     <span>
-                      {i.location.building || i.location.locationDescription}
+                      {i.location.building ||
+                        i.location.locationDescription ||
+                        (i.location.coordinates && "GPS location")}
                     </span>
                     <small>
                       {[
@@ -316,6 +319,19 @@ export function OperationsDashboard() {
                       ]
                         .filter(Boolean)
                         .join(" · ")}
+                      {i.location.coordinates && (
+                        <>
+                          {(i.location.floor || i.location.room) && " · "}
+                          <a
+                            className="map-link"
+                            href={mapUrl(i.location.coordinates)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Map
+                          </a>
+                        </>
+                      )}
                     </small>
                   </td>
                   <td>{i.department}</td>

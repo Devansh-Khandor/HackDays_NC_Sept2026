@@ -51,6 +51,7 @@ export function seedData(): Incident[] {
       floor: "2",
       room: "",
       locationDescription: i === 4 ? "East-side elevator lobby" : "",
+      coordinates: null,
     };
     const a = demoAnalysis(r[0]);
     if (i === 2)

@@ -1,5 +1,12 @@
-import { test, expect } from "@playwright/test";
-test("demo report → clarify → approve → persisted dashboard → status update", async ({
+import { test, expect, type Page } from "@playwright/test";
+async function fillLocation(page: Page, floor = "2") {
+  await page
+    .getByLabel("building", { exact: true })
+    .fill("Koch Hall (Engineering Building II)");
+  await page.getByLabel("floor", { exact: true }).fill(floor);
+  await page.getByLabel("Room / landmark", { exact: true }).fill("2201");
+}
+test("demo report → review → approve → persisted dashboard → status update", async ({
   page,
   request,
 }) => {
@@ -12,14 +19,11 @@ test("demo report → clarify → approve → persisted dashboard → status upd
   ).toBeVisible();
   const before = await (await request.get("/api/incidents")).json();
   await page.getByRole("button", { name: "Try Demo", exact: true }).click();
-  await page.getByRole("button", { name: "Explore demo scenario" }).click();
   await expect(
-    page.getByRole("heading", { name: "Here's what we found." }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Your answer")
-    .fill("Engineering Building II, second floor near room 2201.");
-  await page.getByRole("button", { name: "Continue to review" }).click();
+    page.getByRole("button", { name: "Explore demo scenario" }),
+  ).toBeDisabled();
+  await fillLocation(page);
+  await page.getByRole("button", { name: "Explore demo scenario" }).click();
   await expect(
     page.getByRole("heading", { name: "Your photo. A clear plan." }),
   ).toBeVisible();
@@ -80,6 +84,7 @@ test("missing key and invalid upload produce friendly errors", async ({
   await page
     .getByLabel("What did you notice?")
     .fill("A leaking fountain in the hallway.");
+  await fillLocation(page);
   await page.getByRole("button", { name: "Analyze with Gemini" }).click();
   await expect(page.locator(".error-message")).toContainText(
     "Gemini API key is not configured",
@@ -110,6 +115,7 @@ test("mobile layout and emergency scenario", async ({ page }) => {
   ).toBe(true);
   await page.getByRole("button", { name: "Try Demo", exact: true }).click();
   await page.getByRole("button", { name: "Broken electrical outlet" }).click();
+  await fillLocation(page);
   await page.getByRole("button", { name: "Explore demo scenario" }).click();
   await expect(
     page.getByText("Potential Emergency", { exact: true }),
@@ -156,11 +162,11 @@ test("duplicate confirmation adds support without creating a report", async ({
   await page.goto("/");
   await page.getByRole("button", { name: "Try Demo", exact: true }).click();
   await page.getByRole("button", { name: "Wi-Fi outage", exact: true }).click();
-  await page.locator(".location-input summary").click();
   await page
     .getByLabel("building", { exact: true })
     .fill("Engineering Building II");
   await page.getByLabel("floor", { exact: true }).fill("2");
+  await page.getByLabel("Room / landmark", { exact: true }).fill("Lobby");
   await page.getByRole("button", { name: "Explore demo scenario" }).click();
   await expect(
     page.getByText("This may already have been reported", { exact: true }),

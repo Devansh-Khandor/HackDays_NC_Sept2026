@@ -9,7 +9,7 @@ import {
   StatusTimeline,
   ErrorMessage,
 } from "./Shared";
-export function IncidentDetail({ id }: { id: string }) {
+export function IncidentDetail({ id, isAdmin=false }: { id: string; isAdmin?:boolean }) {
   const [incident, setIncident] = useState<Incident | null>(null);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -39,15 +39,10 @@ export function IncidentDetail({ id }: { id: string }) {
   async function confirm() {
     setBusy(true);
     try {
-      let key = localStorage.getItem("campusfix-confirmation-key");
-      if (!key) {
-        key = crypto.randomUUID();
-        localStorage.setItem("campusfix-confirmation-key", key);
-      }
       const r = await fetch(`/api/incidents/${id}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmationKey: key }),
+        body: JSON.stringify({}),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error);
@@ -61,9 +56,9 @@ export function IncidentDetail({ id }: { id: string }) {
   }
   return (
     <main className="detail-page">
-      <Link className="text-button" href="/admin">
+      <Link className="text-button" href={isAdmin?"/admin":"/my-reports"}>
         <ArrowLeft size={16} />
-        All incidents
+        {isAdmin?"All incidents":"My reports"}
       </Link>
       <ErrorMessage message={error} />
       {incident ? (
