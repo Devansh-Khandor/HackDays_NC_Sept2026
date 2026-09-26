@@ -64,9 +64,7 @@ export function demoAnalysis(id: string): Analysis {
     severityReason: "Assessment from a fictional demonstration scenario.",
     confidence: 0.94,
     missingInformation: ["location"],
-    clarifyingQuestions: [
-      "Which building is this in, and what floor or room is it near?",
-    ],
+    clarifyingQuestions: ["Which building, floor, and room is this in?"],
     suggestedDepartment: s.category === "network" ? "OIT" : "Facilities",
     routingReason: "Pending location context.",
     immediateSafetyMessage: null,

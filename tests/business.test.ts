@@ -8,6 +8,7 @@ import {
   analysisSchema,
   submissionSchema,
   emptyLocation,
+  locationSchema,
   type Draft,
 } from "@/lib/incidents/schema";
 import { routeIncident } from "@/lib/routing/routingEngine";
@@ -17,10 +18,15 @@ import {
   duplicateCandidates,
   detectDuplicate,
 } from "@/lib/gemini/duplicateDetection";
+import {
+  confidentBuilding,
+  nearbyBuildings,
+} from "@/lib/campus/nearestBuilding";
 const location = {
   ...emptyLocation,
   building: "Engineering Building II",
   floor: "2",
+  room: "2201",
 };
 const draft: Draft = {
   analysis: demoAnalysis("fountain"),
@@ -110,18 +116,58 @@ describe("validation", () => {
         submissionKey: randomUUID(),
       }).success,
     ).toBe(false));
-  it("accepts a usable landmark without building", () =>
-    expect(
+  it("requires building, floor, and room", () => {
+    const submit = (l: Partial<typeof location>) =>
       submissionSchema.safeParse({
         ...draft,
-        location: {
-          ...emptyLocation,
-          locationDescription: "Outside Hunt Library main entrance",
-        },
+        location: { ...location, ...l },
         userApproved: true,
         submissionKey: randomUUID(),
+      }).success;
+    expect(submit({})).toBe(true);
+    expect(submit({ floor: "" })).toBe(false);
+    expect(submit({ room: " " })).toBe(false);
+    expect(
+      submit({
+        building: "",
+        locationDescription: "Outside Hunt Library main entrance",
+      }),
+    ).toBe(false);
+  });
+  it("accepts precise GPS in place of a building, still needing floor and room", () => {
+    const gps = (accuracy: number) => ({
+      latitude: 35.772,
+      longitude: -78.674,
+      accuracy,
+      capturedAt: new Date().toISOString(),
+    });
+    const submit = (l: Partial<typeof location>) =>
+      submissionSchema.safeParse({
+        ...draft,
+        location: { ...location, building: "", ...l },
+        userApproved: true,
+        submissionKey: randomUUID(),
+      }).success;
+    expect(submit({ coordinates: gps(15) })).toBe(true);
+    expect(submit({ coordinates: gps(15), room: "" })).toBe(false);
+    expect(submit({ coordinates: gps(2000) })).toBe(false);
+    expect(submit({})).toBe(false);
+  });
+  it("defaults coordinates for incidents stored before GPS existed", () => {
+    const legacy = { ...location, coordinates: undefined };
+    expect(locationSchema.parse(legacy).coordinates).toBeNull();
+    expect(
+      locationSchema.safeParse({
+        ...legacy,
+        coordinates: {
+          latitude: 200,
+          longitude: 0,
+          accuracy: 5,
+          capturedAt: new Date().toISOString(),
+        },
       }).success,
-    ).toBe(true));
+    ).toBe(false);
+  });
   it("rejects invalid confidence and unknown departments", () => {
     expect(
       analysisSchema.safeParse({ ...draft.analysis, confidence: 1.5 }).success,
@@ -216,5 +262,41 @@ describe("persistent repository", () => {
         [row],
       ),
     ).toBeNull();
+  });
+});
+describe("campus building lookup", () => {
+  const fix = (latitude: number, longitude: number, accuracy = 15) => ({
+    latitude,
+    longitude,
+    accuracy,
+    capturedAt: new Date().toISOString(),
+  });
+  it("picks the building when the fix is clearly inside one", () => {
+    expect(confidentBuilding(fix(35.772, -78.6738))?.name).toBe(
+      "Koch Hall (Engineering Building II)",
+    );
+    expect(confidentBuilding(fix(35.784, -78.6708))?.name).toBe(
+      "Talley Student Union",
+    );
+  });
+  it("offers choices instead of guessing between neighbouring buildings", () => {
+    const between = fix(35.7718, -78.6746);
+    const names = nearbyBuildings(between).map((m) => m.building.name);
+    expect(confidentBuilding(between)).toBeNull();
+    expect(names).toContain("Koch Hall (Engineering Building II)");
+    expect(names).toContain("Engineering Building I (EB1)");
+    expect(names.length).toBeLessThanOrEqual(4);
+  });
+  it("does not auto-pick from an imprecise fix", () =>
+    expect(confidentBuilding(fix(35.772, -78.6738, 400))).toBeNull());
+  it("does not auto-pick a lone building that is not close", () => {
+    const [only] = nearbyBuildings(fix(35.788547, -78.684305, 60));
+    expect(only).toBeDefined();
+    expect(only.distance).toBeGreaterThan(15);
+    expect(confidentBuilding(fix(35.788547, -78.684305, 60))).toBeNull();
+  });
+  it("returns nothing when no building is close enough", () => {
+    expect(nearbyBuildings(fix(35.9, -78.9))).toEqual([]);
+    expect(nearbyBuildings(fix(35.9, -78.9, 5000))).toEqual([]);
   });
 });
