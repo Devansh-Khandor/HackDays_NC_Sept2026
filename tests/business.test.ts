@@ -8,6 +8,7 @@ import {
   analysisSchema,
   submissionSchema,
   emptyLocation,
+  locationSchema,
   type Draft,
 } from "@/lib/incidents/schema";
 import { routeIncident } from "@/lib/routing/routingEngine";
@@ -122,6 +123,38 @@ describe("validation", () => {
         submissionKey: randomUUID(),
       }).success,
     ).toBe(true));
+  it("accepts precise device GPS as a usable location", () => {
+    const gps = {
+      latitude: 35.7847,
+      longitude: -78.6821,
+      accuracy: 12,
+      capturedAt: new Date().toISOString(),
+    };
+    const submit = (accuracy: number) =>
+      submissionSchema.safeParse({
+        ...draft,
+        location: { ...emptyLocation, coordinates: { ...gps, accuracy } },
+        userApproved: true,
+        submissionKey: randomUUID(),
+      }).success;
+    expect(submit(12)).toBe(true);
+    expect(submit(2000)).toBe(false);
+  });
+  it("defaults coordinates for incidents stored before GPS existed", () => {
+    const legacy = { ...location, coordinates: undefined };
+    expect(locationSchema.parse(legacy).coordinates).toBeNull();
+    expect(
+      locationSchema.safeParse({
+        ...legacy,
+        coordinates: {
+          latitude: 200,
+          longitude: 0,
+          accuracy: 5,
+          capturedAt: new Date().toISOString(),
+        },
+      }).success,
+    ).toBe(false);
+  });
   it("rejects invalid confidence and unknown departments", () => {
     expect(
       analysisSchema.safeParse({ ...draft.analysis, confidence: 1.5 }).success,

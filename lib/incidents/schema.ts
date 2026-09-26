@@ -37,11 +37,21 @@ export const statuses = [
 ] as const;
 const text = z.string().trim().min(1).max(3000);
 const short = z.string().trim().max(250);
-export const locationSchema = z.object({
+export const coordinatesSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracy: z.number().min(0).max(100_000),
+  capturedAt: z.string().datetime(),
+});
+// Text fields only: Gemini fills these, device GPS never comes from the model.
+export const placeSchema = z.object({
   building: short,
   floor: short,
   room: short,
   locationDescription: short,
+});
+export const locationSchema = placeSchema.extend({
+  coordinates: coordinatesSchema.nullable().default(null),
 });
 export const analysisSchema = z.object({
   issueTitle: text.max(180),
@@ -70,8 +80,16 @@ export const draftSchema = z.object({
   image: imagePathSchema,
   mode: z.enum(["live", "demo"]),
 });
+// GPS fixes coarser than this cannot tell buildings apart on campus.
+export const MAX_USABLE_ACCURACY_METERS = 150;
+export const hasPreciseCoordinates = (l: z.infer<typeof locationSchema>) =>
+  Boolean(
+    l.coordinates && l.coordinates.accuracy <= MAX_USABLE_ACCURACY_METERS,
+  );
 export const hasLocation = (l: z.infer<typeof locationSchema>) =>
-  l.building.trim().length >= 3 || l.locationDescription.trim().length >= 5;
+  l.building.trim().length >= 3 ||
+  l.locationDescription.trim().length >= 5 ||
+  hasPreciseCoordinates(l);
 export const submissionSchema = draftSchema
   .extend({ userApproved: z.literal(true), submissionKey: z.string().uuid() })
   .refine((d) => hasLocation(d.location), {
@@ -99,6 +117,7 @@ export const incidentSchema = draftSchema.extend({
 });
 export type Analysis = z.infer<typeof analysisSchema>;
 export type Location = z.infer<typeof locationSchema>;
+export type Coordinates = z.infer<typeof coordinatesSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 export type Incident = z.infer<typeof incidentSchema>;
 export type Status = (typeof statuses)[number];
@@ -108,4 +127,5 @@ export const emptyLocation: Location = {
   floor: "",
   room: "",
   locationDescription: "",
+  coordinates: null,
 };

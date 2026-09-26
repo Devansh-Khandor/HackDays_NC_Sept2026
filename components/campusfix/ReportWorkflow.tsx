@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { type Draft, type Incident, hasLocation } from "@/lib/incidents/schema";
 import { IncidentCapture } from "./IncidentCapture";
+import { LocationPicker } from "./LocationPicker";
 import { AnalysisProgress } from "./AnalysisProgress";
 import {
   ErrorMessage,
@@ -410,6 +411,18 @@ export function ReportWorkflow() {
                       />
                     </label>
                   ))}
+                  <LocationPicker
+                    value={draft.location.coordinates}
+                    onChange={(coordinates) =>
+                      setDraft(
+                        (d) =>
+                          d && {
+                            ...d,
+                            location: { ...d.location, coordinates },
+                          },
+                      )
+                    }
+                  />
                   <button
                     className="button primary"
                     disabled={

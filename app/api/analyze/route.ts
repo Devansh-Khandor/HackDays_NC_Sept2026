@@ -1,12 +1,24 @@
 import { z } from "zod";
 import { analyzeIncident } from "@/lib/gemini/analyzeIncident";
-import { locationSchema, hasLocation } from "@/lib/incidents/schema";
+import {
+  coordinatesSchema,
+  locationSchema,
+  hasLocation,
+} from "@/lib/incidents/schema";
 import { demoAnalysis, scenarios } from "@/lib/demo/scenarios";
 import { applySafetyRules } from "@/lib/safety/safetyRules";
 import { routeIncident } from "@/lib/routing/routingEngine";
 import { validateImage, storeImage } from "@/lib/server/uploads";
 import { apiError, AppError } from "@/lib/server/errors";
 export const runtime = "nodejs";
+function parseCoordinates(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    return coordinatesSchema.parse(JSON.parse(value));
+  } catch {
+    throw new AppError("The device location could not be read. Try again.");
+  }
+}
 export async function POST(request: Request) {
   try {
     if (Number(request.headers.get("content-length") ?? 0) > 6 * 1024 * 1024)
@@ -22,6 +34,7 @@ export async function POST(request: Request) {
       floor: form.get("floor") ?? "",
       room: form.get("room") ?? "",
       locationDescription: form.get("locationDescription") ?? "",
+      coordinates: parseCoordinates(form.get("coordinates")),
     });
     const file = form.get("image");
     const image =

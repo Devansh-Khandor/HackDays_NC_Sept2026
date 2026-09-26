@@ -13,6 +13,7 @@ import {
   type Incident,
 } from "@/lib/incidents/schema";
 import { routes } from "@/lib/routing/routes";
+import { mapUrl } from "@/lib/incidents/geo";
 export const statusLabel = (s: string) =>
   s.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
 export function SeverityBadge({
@@ -61,6 +62,8 @@ export function LocationText({ location }: { location: Draft["location"] }) {
         location.floor && `Floor ${location.floor}`,
         location.room && `Room ${location.room}`,
         location.locationDescription,
+        location.coordinates &&
+          `GPS ±${Math.round(location.coordinates.accuracy)} m`,
       ]
         .filter(Boolean)
         .join(" · ") || "Location needed"}
@@ -83,6 +86,16 @@ export function ReportContent({ draft }: { draft: Draft }) {
       <div className="location-line">
         <MapPin size={17} />
         <LocationText location={draft.location} />
+        {draft.location.coordinates && (
+          <a
+            className="map-link"
+            href={mapUrl(draft.location.coordinates)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View on map
+          </a>
+        )}
       </div>
       {draft.image && (
         <img

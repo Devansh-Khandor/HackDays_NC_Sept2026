@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   analysisSchema,
   locationSchema,
+  placeSchema,
   type Analysis,
   type Location,
 } from "@/lib/incidents/schema";
@@ -30,10 +31,10 @@ export async function clarifyIncident(
     typeof clarifyInputSchema
   >["conversationHistory"],
 ) {
-  return generateStructured(
+  const result = await generateStructured(
     z.object({
       updatedAnalysis: analysisSchema,
-      location: locationSchema,
+      location: placeSchema,
       readyForReview: z.boolean(),
     }),
     clarificationPrompt,
@@ -48,4 +49,9 @@ export async function clarifyIncident(
       },
     ],
   );
+  // Device coordinates are user-captured facts; the model only edits text fields.
+  return {
+    ...result,
+    location: { ...result.location, coordinates: knownLocation.coordinates },
+  };
 }
