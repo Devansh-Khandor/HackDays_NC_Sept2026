@@ -156,7 +156,7 @@ export function OperationsDashboard() {
         <div>
           <div className="dashboard-eyebrow">
             <span className="eyebrow">Campus operations</span>
-            <span className="demo-admin">Demo Admin</span>
+            <span className="demo-admin">Administrator</span>
           </div>
           <h1>
             CampusFix Command Center<span>.</span>

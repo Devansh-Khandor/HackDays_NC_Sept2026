@@ -11,7 +11,7 @@ export function getGeminiClient() {
     );
   return (client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }));
 }
-export const getModel = () => process.env.GEMINI_MODEL || "gemini-3.8-flash";
+export const getModel = () => process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 export async function generateStructured<T extends z.ZodType>(
   schema: T,
   system: string,

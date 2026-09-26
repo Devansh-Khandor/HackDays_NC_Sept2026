@@ -7,5 +7,5 @@ import { routeIncident } from "@/lib/routing/routingEngine";
 export async function submitIncident(input: unknown) {
   const data = submissionSchema.parse(input);
   data.analysis = routeIncident(applySafetyRules(data.analysis), data.location);
-  return getRepository().createIncident(data, data.submissionKey);
+  return (await getRepository()).createIncident(data, data.submissionKey);
 }

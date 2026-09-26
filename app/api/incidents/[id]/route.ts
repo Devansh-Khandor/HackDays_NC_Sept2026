@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth/server";
 import { z } from "zod";
 import { statuses } from "@/lib/incidents/schema";
 import { getRepository } from "@/lib/incidents";
@@ -6,7 +7,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_: Request, { params }: Context) {
   try {
     const { id } = await params;
-    const row = await getRepository().getIncident(id);
+    const row = await (await getRepository()).getIncident(id);
     if (!row) throw new AppError("That report could not be found.", 404);
     return Response.json(row);
   } catch (e) {
@@ -15,11 +16,12 @@ export async function GET(_: Request, { params }: Context) {
 }
 export async function PATCH(request: Request, { params }: Context) {
   try {
+    await requireAdmin();
     const { id } = await params;
     const { status } = z
       .object({ status: z.enum(statuses) })
       .parse(await readJson(request));
-    return Response.json(await getRepository().updateStatus(id, status));
+    return Response.json(await (await getRepository()).updateStatus(id, status));
   } catch (e) {
     return apiError(e);
   }

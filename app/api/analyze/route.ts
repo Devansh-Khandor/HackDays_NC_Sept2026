@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/server";
 import { z } from "zod";
 import { analyzeIncident } from "@/lib/gemini/analyzeIncident";
 import {
@@ -21,6 +22,7 @@ function parseCoordinates(value: FormDataEntryValue | null) {
 }
 export async function POST(request: Request) {
   try {
+    await requireUser();
     if (Number(request.headers.get("content-length") ?? 0) > 6 * 1024 * 1024)
       throw new AppError("Please choose an image smaller than 5 MB.", 413);
     const form = await request.formData();

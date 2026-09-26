@@ -27,7 +27,7 @@ Edit `.env.local`:
 
 ```dotenv
 GEMINI_API_KEY=your_actual_key
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 DATA_BACKEND=json
 ```
 
@@ -78,7 +78,7 @@ flowchart TD
 
 ## Gemini usage
 
-The official **`@google/genai`** SDK runs only on the server, defaulting to **`gemini-3.8-flash`**. The implementation follows the installed SDK's `models.generateContent`, `responseJsonSchema`, `responseMimeType`, `ThinkingLevel.LOW`, and abort-signal types.
+The official **`@google/genai`** SDK runs only on the server, defaulting to **`gemini-3.5-flash-lite`**. The implementation follows the installed SDK's `models.generateContent`, `responseJsonSchema`, `responseMimeType`, `ThinkingLevel.LOW`, and abort-signal types.
 
 1. **Multimodal perception:** `analyzeIncident.ts` sends inline image bytes and the user's description/location in the same request. Text-only reporting is also supported for issues such as Wi-Fi outages.
 2. **Structured extraction:** the shared Zod analysis schema converts to JSON Schema via `z.toJSONSchema`. Every response is parsed and validated again. Malformed results retry once with a correction instruction.
@@ -175,3 +175,22 @@ To demonstrate duplicates without a key, choose **Wi-Fi outage**, add building *
 ## Intentionally deferred / future work
 
 Google Search grounding, model-generated function calls, voice input, Gemini Live camera streaming, Firebase/Firestore adapter, authentication, notifications, geolocation, predictive maintenance and real campus integrations. These are not claimed as implemented. The repository interface and isolated Gemini modules make future extensions straightforward.
+
+## Supabase accounts and access
+
+The app now uses Supabase Auth, Postgres, and private Storage. Configure
+NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.
+The migration in supabase/migrations creates the tables, private photo bucket,
+campus-only signup trigger, and database access policies.
+
+Create an account with an @ncsu.edu email, confirm the email, and sign in.
+Only the verified dkhando@ncsu.edu account has the admin dashboard and status
+controls. Students can report issues and view reports they submitted or confirmed.
+Email confirmation must remain enabled. Supabase's default mailer only supports
+project-team addresses; configure custom SMTP before opening signup to students.
+Set the Auth Site URL to the app origin and allow /auth/confirm for each deployed
+or local origin. Local default confirmation links use http://localhost:3000.
+
+Runtime reports and photos are stored in Supabase; the previous JSON repository
+is retained for its unit tests only. Existing local JSON data is not automatically
+imported into the new database.
