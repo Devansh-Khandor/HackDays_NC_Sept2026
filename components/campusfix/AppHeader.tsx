@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ScanLine, ArrowUpRight } from "lucide-react";
+import { InstallAppButton } from "@/components/campusfix/InstallAppButton";
 export function AppHeader({ role }: { role: "admin" | "student" }) {
   const path = usePathname();
   const router=useRouter();
@@ -45,6 +46,7 @@ export function AppHeader({ role }: { role: "admin" | "student" }) {
         <span className="live-dot" />
         Built for a better campus
       </span>
+      <InstallAppButton />
     </header>
   );
 }

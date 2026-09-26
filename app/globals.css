@@ -181,6 +181,35 @@ small {
 .small-button:hover {
   background: #f5f5f5;
 }
+.install-app {
+  position: relative;
+}
+.small-button.icon-only {
+  width: 35px;
+  min-height: 35px;
+  padding: 0;
+}
+.install-ios-hint {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 240px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #00000014;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  z-index: 20;
+}
+.install-ios-hint-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--muted);
+  cursor: pointer;
+}
 .app-header {
   height: 84px;
   border-bottom: 1px solid var(--line);
