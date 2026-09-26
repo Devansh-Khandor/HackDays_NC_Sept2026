@@ -14,15 +14,10 @@ import {
   X,
   ChevronRight,
   AlertTriangle,
-  CheckCheck,
 } from "lucide-react";
-import type { Incident } from "@/lib/incidents/schema";
-import type { Actor } from "@/lib/incidents/workflow";
+import { statuses, type Incident, type Status } from "@/lib/incidents/schema";
 import { mapUrl } from "@/lib/incidents/geo";
-import { IncidentActions } from "./IncidentActions";
-import { TeamPanel } from "./TeamPanel";
 import {
-  ActivityLog,
   ErrorMessage,
   ReportContent,
   SeverityBadge,
@@ -31,8 +26,6 @@ import {
 } from "./Shared";
 const filters = [
   "All incidents",
-  "Needs verification",
-  "Unassigned",
   "Urgent",
   "Facilities",
   "Housing",
@@ -40,6 +33,12 @@ const filters = [
   "OIT",
   "Resolved",
 ];
+const actions: Partial<Record<Status, string>> = {
+  reported: "Acknowledge",
+  acknowledged: "Assign",
+  assigned: "Start Work",
+  in_progress: "Resolve",
+};
 function age(date: string) {
   const mins = Math.max(1, Math.floor((Date.now() - Date.parse(date)) / 60000));
   return mins < 60
@@ -48,7 +47,7 @@ function age(date: string) {
       ? `${Math.floor(mins / 60)}h ago`
       : `${Math.floor(mins / 1440)}d ago`;
 }
-export function OperationsDashboard({ viewer }: { viewer: Actor }) {
+export function OperationsDashboard() {
   const drawerRef = useRef<HTMLElement>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [filter, setFilter] = useState("All incidents");
@@ -56,6 +55,7 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
   const [selected, setSelected] = useState<Incident | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const r = await fetch("/api/incidents", { cache: "no-store" });
@@ -104,9 +104,27 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
       document.removeEventListener("keydown", listener);
     };
   }, [selected]);
-  async function updated(incident: Incident) {
-    setSelected(incident);
-    await refresh();
+  async function update() {
+    if (!selected) return;
+    const status = statuses[statuses.indexOf(selected.status) + 1];
+    if (!status) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/incidents/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      setSelected(data);
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
   const open = incidents.filter((i) => i.status !== "resolved");
   const urgent = open.filter((i) =>
@@ -115,9 +133,7 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
   const today = incidents.filter(
     (i) => new Date(i.createdAt).toDateString() === new Date().toDateString(),
   );
-  const needsVerification = incidents.filter(
-    (i) => i.status === "awaiting_verification",
-  );
+  const confirmations = incidents.reduce((a, i) => a + i.confirmations, 0);
   const mostConfirmed = [...open].sort(
     (a, b) => b.confirmations - a.confirmations,
   )[0];
@@ -131,10 +147,6 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
           ["urgent", "emergency"].includes(i.analysis.severity) &&
           i.status !== "resolved") ||
         (filter === "Resolved" && i.status === "resolved") ||
-        (filter === "Needs verification" &&
-          i.status === "awaiting_verification") ||
-        (filter === "Unassigned" &&
-          (i.status === "reported" || i.status === "acknowledged")) ||
         (filter === "Housing" ? "University Housing" : filter) === i.department)
     );
   });
@@ -180,10 +192,10 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
             note: "Campus observations",
           },
           {
-            label: "Awaiting verification",
-            value: needsVerification.length,
-            Icon: CheckCheck,
-            note: "Employee work to review",
+            label: "Total confirmations",
+            value: confirmations,
+            Icon: Users,
+            note: "A stronger campus signal",
           },
         ].map(({ label, value, Icon, note }, i) => (
           <div className={`metric metric-${i}`} key={label}>
@@ -322,14 +334,7 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
                       )}
                     </small>
                   </td>
-                  <td>
-                    <span>{i.department}</span>
-                    <small>
-                      {i.assignedTo
-                        ? `→ ${i.assignedTo.split("@")[0]}`
-                        : "Unassigned"}
-                    </small>
-                  </td>
+                  <td>{i.department}</td>
                   <td className="confirmations-cell">{i.confirmations}</td>
                   <td>
                     <span className="age">
@@ -379,7 +384,6 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
           </span>
         </div>
       </section>
-      <TeamPanel />
       {selected && (
         <div className="drawer-backdrop" onClick={() => setSelected(null)}>
           <section
@@ -406,20 +410,14 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
               </button>
             </div>
             <div className="drawer-body">
-              <IncidentActions
-                key={`${selected.id}-${selected.status}`}
-                incident={selected}
-                viewer={viewer}
-                onUpdated={updated}
-              />
               <ReportContent draft={selected} />
               <h3 className="timeline-title">Report activity</h3>
               <StatusTimeline incident={selected} />
-              <ActivityLog incident={selected} />
               <p className="support-count">
                 <Users size={18} />
                 {selected.confirmations} community confirmations
               </p>
+              <ErrorMessage message={error} />
             </div>
             <div className="drawer-actions">
               <Link
@@ -429,6 +427,16 @@ export function OperationsDashboard({ viewer }: { viewer: Actor }) {
                 Track report
                 <ArrowUpRight size={15} />
               </Link>
+              {actions[selected.status] && (
+                <button
+                  className="button primary"
+                  onClick={update}
+                  disabled={busy}
+                >
+                  {busy ? "Saving..." : actions[selected.status]}
+                  <ArrowRight size={17} />
+                </button>
+              )}
             </div>
           </section>
         </div>

@@ -2,9 +2,14 @@ import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { incidentSchema, type Draft, type Incident } from "./schema";
+import {
+  incidentSchema,
+  statuses,
+  type Draft,
+  type Incident,
+  type Status,
+} from "./schema";
 import type { IncidentRepository } from "./repository";
-import { applyAction, type Actor, type IncidentAction } from "./workflow";
 import { seedData } from "@/lib/demo/seedData";
 // Serialize every read-modify-write, including initial seeding. Atomic rename avoids partial JSON.
 const processState = globalThis as typeof globalThis & {
@@ -77,7 +82,6 @@ export class JsonIncidentRepository implements IncidentRepository {
         confirmations: 0,
         confirmationKeys: [],
         submissionKey,
-        assignedTo: null,
         createdAt: now,
         updatedAt: now,
         timeline: [{ status: "reported", at: now }],
@@ -88,14 +92,13 @@ export class JsonIncidentRepository implements IncidentRepository {
       return incident;
     });
   }
-  private mutate(id: string, fn: (incident: Incident) => Incident | void) {
+  private mutate(id: string, fn: (incident: Incident) => void) {
     return this.locked(async () => {
       const rows = await this.read();
-      const index = rows.findIndex((r) => r.id === id);
-      if (index < 0) throw new Error("NOT_FOUND");
-      const row = fn(rows[index]) ?? rows[index];
+      const row = rows.find((r) => r.id === id);
+      if (!row) throw new Error("NOT_FOUND");
+      fn(row);
       row.updatedAt = new Date().toISOString();
-      rows[index] = row;
       await this.save(rows);
       return row;
     });
@@ -109,7 +112,13 @@ export class JsonIncidentRepository implements IncidentRepository {
       }
     });
   }
-  applyAction(id: string, action: IncidentAction, actor: Actor) {
-    return this.mutate(id, (i) => applyAction(i, action, actor));
+  updateStatus(id: string, status: Status) {
+    return this.mutate(id, (i) => {
+      if (status === i.status) return;
+      if (statuses.indexOf(status) !== statuses.indexOf(i.status) + 1)
+        throw new Error("INVALID_TRANSITION");
+      i.status = status;
+      i.timeline.push({ status, at: new Date().toISOString() });
+    });
   }
 }

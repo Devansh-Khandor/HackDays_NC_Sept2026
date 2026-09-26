@@ -103,7 +103,6 @@ export function seedData(): Incident[] {
       confirmations: r[4],
       confirmationKeys: [],
       submissionKey: randomUUID(),
-      assignedTo: null,
       createdAt,
       updatedAt: createdAt,
       timeline:

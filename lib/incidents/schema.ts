@@ -33,7 +33,6 @@ export const statuses = [
   "acknowledged",
   "assigned",
   "in_progress",
-  "awaiting_verification",
   "resolved",
 ] as const;
 const text = z.string().trim().min(1).max(3000);
@@ -102,14 +101,6 @@ export const duplicateSchema = z.object({
   similarityScore: z.number().min(0).max(1),
   reason: z.string().max(1500),
 });
-export const timelineEntrySchema = z.object({
-  status: z.enum(statuses),
-  at: z.string(),
-  // Who moved the report, plus optional work notes and evidence photos.
-  actor: z.string().optional(),
-  note: z.string().max(2000).optional(),
-  image: imagePathSchema.optional(),
-});
 export const incidentSchema = draftSchema.extend({
   id: z.string().uuid(),
   displayId: z.string(),
@@ -120,9 +111,7 @@ export const incidentSchema = draftSchema.extend({
   submissionKey: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  // Employee email the admin assigned; null until the report is assigned.
-  assignedTo: z.string().nullable().default(null),
-  timeline: z.array(timelineEntrySchema),
+  timeline: z.array(z.object({ status: z.enum(statuses), at: z.string() })),
   seeded: z.boolean(),
 });
 export type Analysis = z.infer<typeof analysisSchema>;
@@ -131,7 +120,6 @@ export type Coordinates = z.infer<typeof coordinatesSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 export type Incident = z.infer<typeof incidentSchema>;
 export type Status = (typeof statuses)[number];
-export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
 export type Department = (typeof departments)[number];
 export const emptyLocation: Location = {
   building: "",

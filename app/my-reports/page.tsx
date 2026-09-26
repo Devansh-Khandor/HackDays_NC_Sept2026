@@ -2,11 +2,8 @@ import Link from "next/link";
 import { requirePageUser } from "@/lib/auth/server";
 import { getRepository } from "@/lib/incidents";
 export default async function MyReports() {
-  const user = await requirePageUser();
-  // Employees also see their assigned tickets; those live on /work instead.
-  const reports = (await (await getRepository()).getIncidents()).filter(
-    (r) => user.role !== "employee" || r.assignedTo !== user.email,
-  );
+  await requirePageUser();
+  const reports = await (await getRepository()).getIncidents();
   return (
     <main className="detail-page">
       <span className="eyebrow">Track your impact</span>

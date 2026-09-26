@@ -194,23 +194,3 @@ or local origin. Local default confirmation links use http://localhost:3000.
 Runtime reports and photos are stored in Supabase; the previous JSON repository
 is retained for its unit tests only. Existing local JSON data is not automatically
 imported into the new database.
-
-## Roles, ticket workflow and notifications
-
-There are three roles:
-
-- **Reporter** (any verified @ncsu.edu account): reports issues and follows them under My reports.
-- **Employee** (emails listed in the admin's Team panel; `employee1@ncsu.edu` and `employee2@ncsu.edu` are seeded): works assigned tickets from **My assignments** (`/work`).
-- **Administrator** (`dkhando@ncsu.edu`): triages, assigns and verifies from the Operations dashboard.
-
-Ticket lifecycle, enforced in the database by `act_on_incident`:
-
-1. Reporter submits → status **Reported**; the admin is notified.
-2. Admin **acknowledges** → reporter notified.
-3. Admin **assigns** an employee → employee and reporter notified. Admins can reassign while work is open.
-4. Employee optionally **starts work**, then **marks it resolved** with a note and an optional photo → **Awaiting verification**; the admin is notified.
-5. Admin reviews the note/photo (or checks in person) and either **verifies** → **Resolved** (reporter and employee notified), or **sends it back** with a note → **Assigned** again (employee notified; reporter told it is not resolved yet).
-
-The bell in the top bar is the notification center. It polls every 20 seconds while the tab is visible, shows unread counts, and opens the related ticket. Staff email addresses and assignment notes are hidden from reporters.
-
-Apply `supabase/migrations/20260926190000_employee_role_notifications.sql` after the initial migration (`supabase db push`, or paste it into the SQL editor). Employees sign up with their listed email like any other user; their role takes effect as soon as they are on the team list.

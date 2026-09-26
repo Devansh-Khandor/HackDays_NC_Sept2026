@@ -15,12 +15,6 @@ import { routeIncident } from "@/lib/routing/routingEngine";
 import { applySafetyRules, emergencyMessage } from "@/lib/safety/safetyRules";
 import { JsonIncidentRepository } from "@/lib/incidents/jsonRepository";
 import {
-  applyAction,
-  availableActions,
-  incidentActionSchema,
-  type Actor,
-} from "@/lib/incidents/workflow";
-import {
   duplicateCandidates,
   detectDuplicate,
 } from "@/lib/gemini/duplicateDetection";
@@ -40,8 +34,6 @@ const draft: Draft = {
   image: null,
   mode: "demo",
 };
-const admin: Actor = { email: "dkhando@ncsu.edu", role: "admin" };
-const employee: Actor = { email: "employee1@ncsu.edu", role: "employee" };
 const dirs: string[] = [];
 async function repo() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "campusfix-test-"));
@@ -204,24 +196,15 @@ describe("persistent repository", () => {
     expect((await r.getIncident(row.id))?.analysis.issueTitle).toBe(
       draft.analysis.issueTitle,
     );
-    await r.applyAction(row.id, { action: "acknowledge" }, admin);
-    await r.applyAction(
-      row.id,
-      { action: "assign", assignee: employee.email },
-      admin,
-    );
-    await r.applyAction(row.id, { action: "start" }, employee);
-    await r.applyAction(
-      row.id,
-      { action: "complete", note: "Fixed", image: null },
-      employee,
-    );
-    await r.applyAction(row.id, { action: "verify", note: "" }, admin);
+    await r.updateStatus(row.id, "acknowledged");
+    await r.updateStatus(row.id, "assigned");
+    await r.updateStatus(row.id, "in_progress");
+    await r.updateStatus(row.id, "resolved");
     const again = new JsonIncidentRepository(
       path.join(dirs[0], "incidents.json"),
       false,
     );
-    expect((await again.getIncident(row.id))?.timeline).toHaveLength(6);
+    expect((await again.getIncident(row.id))?.timeline).toHaveLength(5);
     expect(await again.getOpenIncidents()).toHaveLength(0);
   });
   it("is idempotent on retried submission", async () => {
@@ -252,9 +235,9 @@ describe("persistent repository", () => {
     const r = await repo();
     expect(await r.getIncident(randomUUID())).toBeNull();
     const row = await r.createIncident(draft, randomUUID());
-    await expect(
-      r.applyAction(row.id, { action: "verify", note: "" }, admin),
-    ).rejects.toThrow("INVALID_TRANSITION");
+    await expect(r.updateStatus(row.id, "resolved")).rejects.toThrow(
+      "INVALID_TRANSITION",
+    );
     await expect(r.addConfirmation(randomUUID(), randomUUID())).rejects.toThrow(
       "NOT_FOUND",
     );
@@ -315,102 +298,5 @@ describe("campus building lookup", () => {
   it("returns nothing when no building is close enough", () => {
     expect(nearbyBuildings(fix(35.9, -78.9))).toEqual([]);
     expect(nearbyBuildings(fix(35.9, -78.9, 5000))).toEqual([]);
-  });
-});
-
-describe("ticket workflow", () => {
-  const other: Actor = { email: "employee2@ncsu.edu", role: "employee" };
-  const student: Actor = { email: "student@ncsu.edu", role: "student" };
-  async function assigned() {
-    const r = await repo();
-    const row = await r.createIncident(draft, randomUUID());
-    await r.applyAction(row.id, { action: "acknowledge" }, admin);
-    return {
-      r,
-      row: await r.applyAction(
-        row.id,
-        { action: "assign", assignee: employee.email },
-        admin,
-      ),
-    };
-  }
-  it("runs report -> acknowledge -> assign -> complete -> verify", async () => {
-    const { r, row } = await assigned();
-    expect(row.assignedTo).toBe(employee.email);
-    expect(availableActions(row, employee)).toEqual(["start", "complete"]);
-    const done = await r.applyAction(
-      row.id,
-      {
-        action: "complete",
-        note: "Replaced valve",
-        image: "/api/uploads/00000000-0000-0000-0000-000000000000.jpg",
-      },
-      employee,
-    );
-    expect(done.status).toBe("awaiting_verification");
-    expect(done.timeline.at(-1)).toMatchObject({
-      actor: employee.email,
-      note: "Replaced valve",
-    });
-    expect(availableActions(done, admin)).toEqual(["verify", "reject"]);
-    expect(
-      (await r.applyAction(row.id, { action: "verify", note: "" }, admin))
-        .status,
-    ).toBe("resolved");
-  });
-  it("sends work back to the same employee with a note", async () => {
-    const { r, row } = await assigned();
-    await r.applyAction(
-      row.id,
-      { action: "complete", note: "", image: null },
-      employee,
-    );
-    const back = await r.applyAction(
-      row.id,
-      { action: "reject", note: "Still leaking" },
-      admin,
-    );
-    expect(back.status).toBe("assigned");
-    expect(back.assignedTo).toBe(employee.email);
-    expect(availableActions(back, employee)).toContain("complete");
-  });
-  it("only lets the assigned employee resolve, and only admins verify", async () => {
-    const { r, row } = await assigned();
-    for (const actor of [other, student, admin])
-      await expect(
-        r.applyAction(
-          row.id,
-          { action: "complete", note: "", image: null },
-          actor,
-        ),
-      ).rejects.toThrow("FORBIDDEN");
-    const done = applyAction(
-      row,
-      { action: "complete", note: "", image: null },
-      employee,
-    );
-    expect(() =>
-      applyAction(done, { action: "verify", note: "" }, employee),
-    ).toThrow("FORBIDDEN");
-  });
-  it("requires acknowledgement before assignment and a note to send back", async () => {
-    const r = await repo();
-    const row = await r.createIncident(draft, randomUUID());
-    await expect(
-      r.applyAction(
-        row.id,
-        { action: "assign", assignee: employee.email },
-        admin,
-      ),
-    ).rejects.toThrow("INVALID_TRANSITION");
-    expect(
-      incidentActionSchema.safeParse({ action: "reject", note: "" }).success,
-    ).toBe(false);
-    expect(
-      incidentActionSchema.parse({
-        action: "assign",
-        assignee: "Employee1@NCSU.edu",
-      }),
-    ).toEqual({ action: "assign", assignee: "employee1@ncsu.edu" });
   });
 });

@@ -27,9 +27,7 @@ import {
   SeverityBadge,
   SafetyBanner,
   LocationText,
-  dashboardFor,
 } from "./Shared";
-import type { Role } from "@/lib/auth/policy";
 import { routes } from "@/lib/routing/routes";
 import { routeIncident } from "@/lib/routing/routingEngine";
 import { applySafetyRules } from "@/lib/safety/safetyRules";
@@ -48,7 +46,7 @@ async function request(url: string, body: unknown, method = "POST") {
     throw new Error(json.error || "Something went wrong. Please try again.");
   return json;
 }
-export function ReportWorkflow({ role = "student" }: { role?: Role }) {
+export function ReportWorkflow({isAdmin=false}:{isAdmin?:boolean}) {
   const [step, setStep] = useState<Step>("capture");
   const demo = false;
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -601,11 +599,8 @@ export function ReportWorkflow({ role = "student" }: { role?: Role }) {
               >
                 Report Another Issue
               </button>
-              <Link
-                className="text-button dashboard-link"
-                href={dashboardFor(role).href}
-              >
-                {dashboardFor(role).label}
+              <Link className="text-button dashboard-link" href={isAdmin?"/admin":"/my-reports"}>
+                {isAdmin?"View Operations Dashboard":"View My Reports"}
                 <ChevronRight size={15} />
               </Link>
               <div className="powered">

@@ -19,23 +19,6 @@ export function apiError(error: unknown) {
       { status: 400 },
     );
   const message = error instanceof Error ? error.message : "";
-  const known: Record<string, [string, number]> = {
-    FORBIDDEN: ["You do not have permission to change this report.", 403],
-    NOT_EMPLOYEE: [
-      "Choose someone from your team list. Add them under Team first.",
-      400,
-    ],
-    NOTE_REQUIRED: ["Add a note explaining what still needs work.", 400],
-    INVALID_EMPLOYEE: [
-      "Enter an @ncsu.edu email address that is not the administrator's.",
-      400,
-    ],
-  };
-  if (known[message])
-    return Response.json(
-      { error: known[message][0] },
-      { status: known[message][1] },
-    );
   if (message === "NOT_FOUND")
     return Response.json(
       { error: "That report could not be found." },
