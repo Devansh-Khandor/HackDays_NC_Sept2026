@@ -597,35 +597,6 @@ small {
   font-weight: 500;
   letter-spacing: -2px;
 }
-.mode-switch {
-  display: flex;
-  background: #f4f5f6;
-  border: 1px solid #eceef0;
-  padding: 4px;
-  border-radius: 7px;
-  margin-bottom: 20px;
-  gap: 3px;
-}
-.mode-switch button {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  justify-content: center;
-  width: 50%;
-  font-size: 12px;
-  color: #8d9097;
-  padding: 8px;
-  border-radius: 4px;
-}
-.mode-switch .selected {
-  background: white;
-  color: #42474e;
-  box-shadow: 0 1px 4px #0000000c;
-  font-weight: 600;
-}
-.mode-switch .selected svg {
-  color: var(--red);
-}
 .upload-zone {
   border: 1.5px dashed #d9dcdf;
   border-radius: 8px;
@@ -2412,10 +2383,6 @@ td > small {
   }
   .capture-heading .eyebrow {
     font-size: 8px;
-  }
-  .mode-switch button {
-    font-size: 12px;
-    padding: 10px 5px;
   }
   .upload-zone {
     min-height: 247px;

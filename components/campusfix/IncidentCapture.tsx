@@ -46,11 +46,9 @@ async function shrinkImage(file: File, maxEdge = 2560): Promise<File> {
 }
 export function IncidentCapture({
   demo,
-  onDemoChange,
   onAnalyze,
 }: {
   demo: boolean;
-  onDemoChange: (v: boolean) => void;
   onAnalyze: (form: FormData) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -118,14 +116,6 @@ export function IncidentCapture({
           <p>A photo is all it takes to get started.</p>
         </div>
         <span className="step-number">01</span>
-      </div>
-      <div className="mode-switch">
-        <button
-          className={!demo ? "selected" : ""}
-          onClick={() => onDemoChange(false)}
-        >
-          <Camera size={16} /> Your report
-        </button>
       </div>
       {demo ? (
         <div className="demo-area">

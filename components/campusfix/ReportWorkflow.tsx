@@ -48,7 +48,7 @@ async function request(url: string, body: unknown, method = "POST") {
 }
 export function ReportWorkflow({isAdmin=false}:{isAdmin?:boolean}) {
   const [step, setStep] = useState<Step>("capture");
-  const [demo, setDemo] = useState(false);
+  const demo = false;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -240,7 +240,6 @@ export function ReportWorkflow({isAdmin=false}:{isAdmin?:boolean}) {
           {step === "capture" && (
             <IncidentCapture
               demo={demo}
-              onDemoChange={setDemo}
               onAnalyze={analyze}
             />
           )}
