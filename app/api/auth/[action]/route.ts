@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   credentialsSchema,
+  homeForRole,
   roleForUser,
+  roles,
   safeNextPath,
+  type Role,
 } from "@/lib/auth/policy";
 import { apiError, AppError, readJson } from "@/lib/server/errors";
 export async function POST(
@@ -15,7 +18,10 @@ export async function POST(
     if (!["login", "signup", "logout"].includes(action))
       throw new AppError("Unknown authentication action.", 404);
     const origin = request.headers.get("origin");
-    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host;
+    const host =
+      request.headers.get("x-forwarded-host") ??
+      request.headers.get("host") ??
+      new URL(request.url).host;
     if (origin && new URL(origin).host !== host)
       throw new AppError("This request is not allowed.", 403);
     const supabase = await createSupabaseServerClient();
@@ -80,12 +86,17 @@ export async function POST(
       await supabase.auth.signOut();
       throw new AppError("A verified @ncsu.edu email is required.", 403);
     }
+    // Employees are recorded in the database rather than derived from the email.
+    const { data: dbRole } = await supabase.rpc("campus_role");
+    const finalRole: Role = roles.includes(dbRole) ? dbRole : role;
     const next = typeof body.next === "string" ? body.next : null;
+    const staffOnly = (path: string | null) =>
+      path?.startsWith("/admin") || path?.startsWith("/work");
     return NextResponse.json({
       redirect:
-        role === "admin"
+        finalRole === "admin"
           ? "/admin"
-          : safeNextPath(next?.startsWith("/admin") ? null : next, "/"),
+          : safeNextPath(staffOnly(next) ? null : next, homeForRole(finalRole)),
     });
   } catch (error) {
     return apiError(error);

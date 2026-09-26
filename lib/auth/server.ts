@@ -3,15 +3,20 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
-import { roleForUser } from "./policy";
+import { homeForRole, roleForUser, roles, type Role } from "./policy";
 import { AppError } from "@/lib/server/errors";
-export const currentUser = cache(async (): Promise<{id:string;email:string;role:"admin"|"student"} | null> => {
+export type SessionUser = { id: string; email: string; role: Role };
+export const currentUser = cache(async (): Promise<SessionUser | null> => {
   if (!supabaseConfig()) return null;
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-  const role = roleForUser(data.user);
-  return role ? { id: data.user.id, email: data.user.email!, role } : null;
+  const base = roleForUser(data.user);
+  if (!base) return null;
+  // The database is authoritative for employee membership.
+  const { data: dbRole } = await supabase.rpc("campus_role");
+  const role = roles.includes(dbRole) ? (dbRole as Role) : base;
+  return { id: data.user.id, email: data.user.email!.toLowerCase(), role };
 });
 export async function requireUser() {
   const user = await currentUser();
@@ -31,9 +36,9 @@ export async function requireAdmin() {
     );
   return user;
 }
-export async function requirePageUser(admin = false) {
+export async function requirePageUser(only?: Role) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (admin && user.role !== "admin") redirect("/my-reports");
+  if (only && user.role !== only) redirect(homeForRole(user.role));
   return user;
 }

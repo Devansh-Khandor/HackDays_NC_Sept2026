@@ -9,8 +9,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ReportWorkflow } from "@/components/campusfix/ReportWorkflow";
+import { dashboardFor } from "@/components/campusfix/Shared";
 export default async function Home() {
-  const user = await requirePageUser(false);
+  const user = await requirePageUser();
   return (
     <main className="home">
       <section className="hero">
@@ -35,12 +36,10 @@ export default async function Home() {
               <ArrowDown size={17} />
             </a>
             <Link
-              href={user.role === "admin" ? "/admin" : "/my-reports"}
+              href={dashboardFor(user.role).href}
               className="hero-secondary"
             >
-              {user.role === "admin"
-                ? "View Operations Dashboard"
-                : "View My Reports"}
+              {dashboardFor(user.role).label}
               <ArrowUpRight size={17} />
             </Link>
           </div>
@@ -94,7 +93,7 @@ export default async function Home() {
           </div>
         </div>
       </section>
-      <ReportWorkflow isAdmin={user.role === "admin"} />
+      <ReportWorkflow role={user.role} />
       <section className="bottom-note">
         <Shield />
         <div>

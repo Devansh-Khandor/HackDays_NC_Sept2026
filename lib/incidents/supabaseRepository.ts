@@ -1,18 +1,19 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  incidentSchema,
-  type Draft,
-  type Incident,
-  type Status,
-} from "./schema";
+import { incidentSchema, type Draft, type Incident } from "./schema";
 import type { IncidentRepository } from "./repository";
+import type { IncidentAction } from "./workflow";
 import { AppError } from "@/lib/server/errors";
-function databaseError(error: { code?: string; message: string }) {
+export function databaseError(error: { code?: string; message: string }) {
   if (
-    ["NOT_FOUND", "INVALID_TRANSITION", "ALREADY_RESOLVED"].includes(
-      error.message,
-    )
+    [
+      "NOT_FOUND",
+      "INVALID_TRANSITION",
+      "ALREADY_RESOLVED",
+      "NOT_EMPLOYEE",
+      "NOTE_REQUIRED",
+      "INVALID_EMPLOYEE",
+    ].includes(error.message)
   )
     throw new Error(error.message);
   if (error.code === "42501")
@@ -71,10 +72,13 @@ export class SupabaseIncidentRepository implements IncidentRepository {
     if (error) databaseError(error);
     return incidentSchema.parse(data);
   }
-  async updateStatus(id: string, status: Status) {
-    const { data, error } = await this.db.rpc("advance_incident", {
+  // The database checks the signed-in actor, so the caller's claims are not trusted.
+  async applyAction(id: string, action: IncidentAction) {
+    const { action: name, ...details } = action;
+    const { data, error } = await this.db.rpc("act_on_incident", {
       p_id: id,
-      p_status: status,
+      p_action: name,
+      p_details: details,
     });
     if (error) databaseError(error);
     return incidentSchema.parse(data);

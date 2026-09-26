@@ -3,9 +3,16 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ScanLine, ArrowUpRight } from "lucide-react";
 import { InstallAppButton } from "@/components/campusfix/InstallAppButton";
-export function AppHeader({ role }: { role: "admin" | "student" }) {
+import { NotificationCenter } from "@/components/campusfix/NotificationCenter";
+import type { Role } from "@/lib/auth/policy";
+const roleLabels: Record<Role, string> = {
+  admin: "Administrator",
+  employee: "Employee",
+  student: "Reporter",
+};
+export function AppHeader({ role }: { role: Role }) {
   const path = usePathname();
-  const router=useRouter();
+  const router = useRouter();
   return (
     <header className="app-header">
       <Link href="/" className="brand">
@@ -17,13 +24,26 @@ export function AppHeader({ role }: { role: "admin" | "student" }) {
         </span>
       </Link>
       <nav aria-label="Main navigation">
+        {role === "employee" && (
+          <Link
+            className={path.startsWith("/work") ? "active" : ""}
+            href="/work"
+          >
+            My assignments
+          </Link>
+        )}
         <Link
           className={path === "/" || path === "/report" ? "active" : ""}
           href="/"
         >
           Report an issue
         </Link>
-        <Link href="/my-reports">My reports</Link>
+        <Link
+          className={path.startsWith("/my-reports") ? "active" : ""}
+          href="/my-reports"
+        >
+          My reports
+        </Link>
         {role === "admin" && (
           <Link
             className={path.startsWith("/admin") ? "active" : ""}
@@ -36,7 +56,10 @@ export function AppHeader({ role }: { role: "admin" | "student" }) {
           className="text-button"
           onClick={async () => {
             const r = await fetch("/api/auth/logout", { method: "POST" });
-            if (r.ok) {router.replace("/login");router.refresh();}
+            if (r.ok) {
+              router.replace("/login");
+              router.refresh();
+            }
           }}
         >
           Sign out
@@ -44,8 +67,9 @@ export function AppHeader({ role }: { role: "admin" | "student" }) {
       </nav>
       <span className="header-note">
         <span className="live-dot" />
-        Built for a better campus
+        {roleLabels[role]}
       </span>
+      <NotificationCenter />
       <InstallAppButton />
     </header>
   );
