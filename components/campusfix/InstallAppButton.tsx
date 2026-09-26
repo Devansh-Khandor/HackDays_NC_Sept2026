@@ -18,16 +18,26 @@ export function InstallAppButton() {
   const [installEvent, setInstallEvent] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [isIOSNonSafari, setIsIOSNonSafari] = useState(false);
   const [hidden, setHidden] = useState(true);
   const [showIosHint, setShowIosHint] = useState(false);
 
   useEffect(() => {
     if (isStandalone()) return;
 
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-        !("MSStream" in window)
-    );
+    const ua = navigator.userAgent;
+    const onIOS = /iPad|iPhone|iPod/.test(ua) && !("MSStream" in window);
+    const onAndroid = /Android/.test(ua);
+    // Desktop already surfaces install via the browser's own UI (address-bar
+    // icon, menu item); the in-page button only earns its space on phones.
+    if (!onIOS && !onAndroid) return;
+
+    setIsIOS(onIOS);
+    // Every iOS browser is required by Apple to use Safari's engine, but only
+    // Safari itself can install the manifest as a real standalone app —
+    // Chrome/Firefox/Edge on iOS report their own token here (CriOS/FxiOS/EdgiOS)
+    // even though they're Safari under the hood.
+    setIsIOSNonSafari(onIOS && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua));
     setHidden(false);
 
     function onBeforeInstallPrompt(e: Event) {
@@ -61,9 +71,14 @@ export function InstallAppButton() {
 
   return (
     <div className="install-app">
-      <button type="button" className="small-button" onClick={handleClick}>
-        <Download size={14} />
-        Install App
+      <button
+        type="button"
+        className="small-button icon-only"
+        onClick={handleClick}
+        aria-label="Install App"
+        title="Install App"
+      >
+        <Download size={16} />
       </button>
       {showIosHint && (
         <div className="install-ios-hint" role="dialog" aria-label="Install instructions">
@@ -76,8 +91,21 @@ export function InstallAppButton() {
             <X size={14} />
           </button>
           <p>
-            Tap the Share button <Share size={13} style={{ verticalAlign: "-2px" }} />{" "}
-            in Safari, then choose <strong>Add to Home Screen</strong>.
+            {isIOSNonSafari ? (
+              <>
+                iPhone only allows installing apps from{" "}
+                <strong>Safari</strong> — open this page in Safari, then tap
+                the Share button{" "}
+                <Share size={13} style={{ verticalAlign: "-2px" }} /> and
+                choose <strong>Add to Home Screen</strong>.
+              </>
+            ) : (
+              <>
+                Tap the Share button{" "}
+                <Share size={13} style={{ verticalAlign: "-2px" }} />, then
+                choose <strong>Add to Home Screen</strong>.
+              </>
+            )}
           </p>
         </div>
       )}

@@ -184,6 +184,11 @@ small {
 .install-app {
   position: relative;
 }
+.small-button.icon-only {
+  width: 35px;
+  min-height: 35px;
+  padding: 0;
+}
 .install-ios-hint {
   position: absolute;
   top: calc(100% + 10px);
