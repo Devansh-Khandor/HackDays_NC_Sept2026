@@ -126,12 +126,6 @@ export function IncidentCapture({
         >
           <Camera size={16} /> Your report
         </button>
-        <button
-          className={demo ? "selected" : ""}
-          onClick={() => onDemoChange(true)}
-        >
-          <FlaskConical size={16} /> Try Demo
-        </button>
       </div>
       {demo ? (
         <div className="demo-area">
