@@ -13,9 +13,16 @@ import {
   type Incident,
 } from "@/lib/incidents/schema";
 import { routes } from "@/lib/routing/routes";
+import type { Role } from "@/lib/auth/policy";
 import { mapUrl } from "@/lib/incidents/geo";
 export const statusLabel = (s: string) =>
   s.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+export const dashboardFor = (role: Role) =>
+  role === "admin"
+    ? { href: "/admin", label: "View Operations Dashboard" }
+    : role === "employee"
+      ? { href: "/work", label: "View My Assignments" }
+      : { href: "/my-reports", label: "View My Reports" };
 export function SeverityBadge({
   severity,
 }: {
@@ -205,7 +212,11 @@ export function StatusTimeline({ incident }: { incident: Incident }) {
   return (
     <ol className="timeline">
       {statuses.map((status, i) => {
-        const entry = incident.timeline.find((e) => e.status === status);
+        // Reports can loop back when an admin sends work back, so show the latest entry.
+        const entry =
+          i <= index
+            ? incident.timeline.findLast((e) => e.status === status)
+            : undefined;
         return (
           <li key={status} className={i <= index ? "complete" : ""}>
             <span className="timeline-dot">
@@ -216,14 +227,48 @@ export function StatusTimeline({ incident }: { incident: Incident }) {
               <small>
                 {entry
                   ? new Date(entry.at).toLocaleString()
-                  : i === index + 1
-                    ? "Next step"
-                    : "Pending"}
+                  : i < index
+                    ? "Skipped"
+                    : i === index + 1
+                      ? "Next step"
+                      : "Pending"}
               </small>
             </div>
           </li>
         );
       })}
+    </ol>
+  );
+}
+// Notes, photos and hand-offs recorded by staff, newest first.
+export function ActivityLog({ incident }: { incident: Incident }) {
+  const entries = incident.timeline
+    .filter((e) => e.note || e.image || e.actor)
+    .reverse();
+  if (!entries.length) return null;
+  return (
+    <ol className="activity-log">
+      {entries.map((e, i) => (
+        <li key={`${e.at}-${i}`}>
+          <div className="activity-head">
+            <StatusBadge status={e.status} />
+            <small>
+              {new Date(e.at).toLocaleString()}
+              {e.actor && ` · ${e.actor}`}
+            </small>
+          </div>
+          {e.note && <p>{e.note}</p>}
+          {e.image && (
+            <a href={e.image} target="_blank" rel="noreferrer">
+              <img
+                className="activity-image"
+                src={e.image}
+                alt="Photo attached by the employee as proof of work"
+              />
+            </a>
+          )}
+        </li>
+      ))}
     </ol>
   );
 }
