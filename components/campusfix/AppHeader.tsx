@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ScanLine, ArrowUpRight } from "lucide-react";
+import { InstallAppButton } from "@/components/campusfix/InstallAppButton";
 export function AppHeader() {
   const path = usePathname();
   return (
@@ -32,6 +33,7 @@ export function AppHeader() {
         <span className="live-dot" />
         Built for a better campus
       </span>
+      <InstallAppButton />
     </header>
   );
 }

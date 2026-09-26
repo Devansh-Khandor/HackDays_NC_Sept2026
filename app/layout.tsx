@@ -1,10 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AppHeader } from "@/components/campusfix/AppHeader";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "CampusFix AI — See it. Report it. Fix it.",
   description:
     "A multimodal campus operations agent powered by Google Gemini. Turn a photo into an actionable service request.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CampusFix AI",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#cc292b",
 };
 export default function RootLayout({
   children,
